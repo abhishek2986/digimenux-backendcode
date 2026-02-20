@@ -1,5 +1,11 @@
 require("dotenv").config();
 var exp = require("express");
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "https://digi-menu-x.netlify.app"],
+    credentials: true,
+  }),
+);
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 var pool = require("./db");
@@ -17,12 +23,7 @@ const upload = multer({
 // app.use(cors({
 //   origin:"http://localhost:5173"
 // }));
-app.use(
-  cors({
-    origin: ["http://localhost:5173", "https://digi-menu-x.netlify.app"],
-    credentials: true,
-  }),
-);
+
 app.options("*", cors()); // 🔥 THIS IS IMPORTANT
 // app.use(cors());
 app.use(bodyParser.json());
