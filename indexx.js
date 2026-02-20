@@ -23,7 +23,7 @@ app.use(
     credentials: true,
   }),
 );
-
+app.options("*", cors()); // 🔥 THIS IS IMPORTANT
 // app.use(cors());
 app.use(bodyParser.json());
 app.use(cookieParser());
