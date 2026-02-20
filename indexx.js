@@ -1,6 +1,7 @@
 require("dotenv").config();
 var exp = require("express");
 const app = exp();
+const cors = require("cors");
 
 app.use(
   cors({
@@ -13,7 +14,6 @@ const cookieParser = require("cookie-parser");
 var pool = require("./db");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcryptjs");
-const cors = require("cors");
 const multer = require("multer");
 const streamifier = require("streamifier");
 const cloudinary = require("./cloudinary");
