@@ -20,7 +20,11 @@ const app = exp();
 // }));
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://digi-menu-x.netlify.app"],
+    origin: [
+      "http://localhost:5173",
+      "https://699898c5eaea9030307b8a6c--digi-menu-x.netlify.app",
+      "https://digi-menu-x.netlify.app",
+    ],
     credentials: true,
   }),
 );
