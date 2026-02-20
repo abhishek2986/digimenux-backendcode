@@ -1,5 +1,7 @@
 require("dotenv").config();
 var exp = require("express");
+const app = exp();
+
 app.use(
   cors({
     origin: ["http://localhost:5173", "https://digi-menu-x.netlify.app"],
@@ -10,7 +12,6 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 var pool = require("./db");
 const bodyParser = require("body-parser");
-const app = exp();
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
 const multer = require("multer");
