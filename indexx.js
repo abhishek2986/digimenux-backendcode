@@ -497,7 +497,7 @@ app.get("/api/customers", async (req, res) => {
 
     if (id) {
       const result = await pool.query(
-        `SELECT * FROM customers 
+        `SELECT * FROM customer 
          WHERE id=$1 AND deleted_at IS NULL`,
         [id],
       );
@@ -510,7 +510,7 @@ app.get("/api/customers", async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT * FROM customers 
+      `SELECT * FROM customer 
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC`,
     );
