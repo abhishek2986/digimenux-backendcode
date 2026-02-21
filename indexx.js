@@ -551,6 +551,57 @@ app.delete("/api/customers", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+//check avaiability api ------
+
+app.post("/check-availability", async (req, res) => {
+  try {
+    const { startTime, endTime, guests } = req.body;
+
+    if (!startTime || !endTime || !guests) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
+
+    // Step 1: Get tables with enough capacity
+    const tablesResult = await pool.query(
+      `SELECT * FROM "restaurantTable"
+       WHERE capacity >= $1
+       AND "deletedAt" IS NULL
+       ORDER BY capacity ASC`,
+      [guests],
+    );
+
+    const tables = tablesResult.rows;
+
+    // Step 2: Check overlapping booking
+    for (const table of tables) {
+      const overlapResult = await pool.query(
+        `SELECT 1 FROM "tableBooking"
+         WHERE "tableId" = $1
+         AND "deletedAt" IS NULL
+         AND "startTime" < $2
+         AND "endTime" > $3
+         LIMIT 1`,
+        [table.id, endTime, startTime],
+      );
+
+      if (overlapResult.rows.length === 0) {
+        return res.status(200).json({
+          available: true,
+          tableId: table.id,
+        });
+      }
+    }
+
+    return res.status(200).json({ available: false });
+  } catch (error) {
+    console.error("CHECK_AVAILABILITY_ERROR:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+});
+
 // app.listen(3000, "127.0.0.1", () => {
 //   console.log("Listening on 127.0.0.1:3000");
 // });
