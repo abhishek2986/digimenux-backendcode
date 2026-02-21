@@ -564,7 +564,7 @@ app.post("/check-availability", async (req, res) => {
 
     // Step 1: Get tables with enough capacity
     const tablesResult = await pool.query(
-      `SELECT * FROM "restaurantTable"
+      `SELECT * FROM "tables"
        WHERE capacity >= $1
        AND "deletedAt" IS NULL
        ORDER BY capacity ASC`,
@@ -576,7 +576,7 @@ app.post("/check-availability", async (req, res) => {
     // Step 2: Check overlapping booking
     for (const table of tables) {
       const overlapResult = await pool.query(
-        `SELECT 1 FROM "tableBooking"
+        `SELECT 1 FROM "bookings"
          WHERE "tableId" = $1
          AND "deletedAt" IS NULL
          AND "startTime" < $2
