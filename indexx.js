@@ -426,8 +426,11 @@ app.post("/tablebill/save", async (req, res) => {
       );
 
       billId = insertResult.rows[0].bill_id;
-
-      billId = insertResult.rows[0].bill_id;
+      // 🔥 Set table occupied
+      await client.query(
+        "UPDATE tables SET status = 'occupied' WHERE id = $1",
+        [table_id],
+      );
     }
     res.json({ message: "Bill Saved", bill_id: billId });
 
@@ -445,6 +448,12 @@ app.post("/tablebill/close", async (req, res) => {
       "UPDATE bills SET status = 'CLOSED' WHERE table_id = $1 AND status = 'OPEN'",
       [table_id],
     );
+
+    // 🔥 Set table available
+    await client.query("UPDATE tables SET status = 'available' WHERE id = $1", [
+      table_id,
+    ]);
+
     res.send("Bill Closed");
   } catch (err) {
     res.status(500).send(err.message);
@@ -479,6 +488,133 @@ app.put("/kitchen/status/:id", async (req, res) => {
   ]);
 
   res.send("Status Updated");
+});
+
+// customer api
+app.get("/api/customers", async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    if (id) {
+      const result = await pool.query(
+        `SELECT * FROM customers 
+         WHERE id=$1 AND deleted_at IS NULL`,
+        [id],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      return res.json(result.rows[0]);
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM customers 
+       WHERE deleted_at IS NULL
+       ORDER BY created_at DESC`,
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET_CUSTOMERS_ERROR:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/api/customers", async (req, res) => {
+  try {
+    const body = req.body;
+
+    // AI tool call support
+    const vapiArgs = body?.message?.toolCalls?.[0]?.function?.arguments;
+
+    const name = vapiArgs?.name || body.name;
+    const rawPhone = vapiArgs?.phone || body.phone;
+
+    if (!name || typeof name !== "string") {
+      return res.status(400).json({ message: "Valid name is required" });
+    }
+
+    const phone =
+      rawPhone && String(rawPhone).trim().length > 0
+        ? String(rawPhone).trim()
+        : null;
+
+    const result = await pool.query(
+      `INSERT INTO customers (name, phone)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [name.trim(), phone],
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({ message: "Phone already exists" });
+    }
+
+    console.error("CREATE_CUSTOMER_ERROR:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.put("/api/customers", async (req, res) => {
+  try {
+    const { id, name, phone } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "Customer ID is required" });
+    }
+
+    const check = await pool.query(`SELECT * FROM customers WHERE id=$1`, [id]);
+
+    if (check.rows.length === 0 || check.rows[0].deleted_at) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const result = await pool.query(
+      `UPDATE customers
+       SET name = COALESCE($1, name),
+           phone = COALESCE($2, phone),
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [name?.trim() || null, phone?.trim() || null, id],
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("UPDATE_CUSTOMER_ERROR:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.delete("/api/customers", async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "Customer ID is required" });
+    }
+
+    const result = await pool.query(
+      `UPDATE customers
+       SET deleted_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    res.json({ message: "Customer deleted successfully" });
+  } catch (error) {
+    console.error("DELETE_CUSTOMER_ERROR:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 // app.listen(3000, "127.0.0.1", () => {
