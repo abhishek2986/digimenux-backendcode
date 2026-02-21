@@ -562,43 +562,47 @@ app.post("/check-availability", async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    // Step 1: Get tables with enough capacity
-    const tablesResult = await pool.query(
-      `SELECT * FROM "tables"
-       WHERE capacity >= $1
-       AND "deletedAt" IS NULL
-       ORDER BY capacity ASC`,
-      [guests],
-    );
+    const start = new Date(startTime);
+    const end = new Date(endTime);
 
-    const tables = tablesResult.rows;
-
-    // Step 2: Check overlapping booking
-    for (const table of tables) {
-      const overlapResult = await pool.query(
-        `SELECT 1 FROM "bookings"
-         WHERE "tableId" = $1
-         AND "deletedAt" IS NULL
-         AND "startTime" < $2
-         AND "endTime" > $3
-         LIMIT 1`,
-        [table.id, endTime, startTime],
-      );
-
-      if (overlapResult.rows.length === 0) {
-        return res.status(200).json({
-          available: true,
-          tableId: table.id,
-        });
-      }
+    if (start >= end) {
+      return res.status(400).json({
+        message: "Invalid time range",
+      });
     }
 
-    return res.status(200).json({ available: false });
+    const query = `
+      SELECT t.id
+      FROM tables t
+      WHERE t.capacity >= $1
+        AND t.status = 'available'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM bookings b
+          WHERE b.table_id = t.id
+            AND b.status != 'cancelled'
+            AND b.start_time < $2
+            AND b.end_time > $3
+        )
+      ORDER BY t.capacity ASC
+      LIMIT 1
+    `;
+
+    const values = [guests, end, start];
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length > 0) {
+      return res.json({
+        available: true,
+        tableId: result.rows[0].id,
+      });
+    }
+
+    return res.json({ available: false });
   } catch (error) {
-    console.error("CHECK_AVAILABILITY_ERROR:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-    });
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
