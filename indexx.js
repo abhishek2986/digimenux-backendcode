@@ -562,13 +562,19 @@ app.post("/check-availability", async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
+    if (guests <= 0) {
+      return res.status(400).json({ message: "Invalid guest count" });
+    }
+
     const start = new Date(startTime);
     const end = new Date(endTime);
 
     if (start >= end) {
-      return res.status(400).json({
-        message: "Invalid time range",
-      });
+      return res.status(400).json({ message: "Invalid time range" });
+    }
+
+    if (start < new Date()) {
+      return res.status(400).json({ message: "Booking cannot be in the past" });
     }
 
     const query = `
@@ -581,14 +587,14 @@ app.post("/check-availability", async (req, res) => {
           FROM bookings b
           WHERE b.table_id = t.id
             AND b.status != 'cancelled'
-            AND b.start_time < $2
-            AND b.end_time > $3
+            AND b.start_time < $3
+            AND b.end_time > $2
         )
       ORDER BY t.capacity ASC
       LIMIT 1
     `;
 
-    const values = [guests, end, start];
+    const values = [guests, start, end];
 
     const result = await pool.query(query, values);
 
@@ -599,7 +605,10 @@ app.post("/check-availability", async (req, res) => {
       });
     }
 
-    return res.json({ available: false });
+    return res.json({
+      available: false,
+      reason: "No tables available for this time slot",
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
